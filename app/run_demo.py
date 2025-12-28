@@ -1,6 +1,8 @@
 from pathlib import Path
 from app.stt_local import transcribe
 from app.teacher_openai import teacher_answer
+from app.tts_local import speak
+
 
 STUDENT = {
     "age": 12,
@@ -41,6 +43,10 @@ def main():
 
     print("\n--- TEACHER ANSWER ---")
     print(answer)
+    
+    print("\n--- SPEAKING ANSWER ---")
+    speak(answer)
+
 
 if __name__ == "__main__":
     main()

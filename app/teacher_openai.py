@@ -21,6 +21,7 @@ Rules:
 2) Give one worked example.
 3) Ask one quick check question.
 Keep it academic and age-appropriate.
+Avoid markdown symbols like ** or bullet formatting. Write in plain text suitable for text-to-speech.
 """.strip()
 
 def teacher_answer(question: str, student: dict) -> str:
