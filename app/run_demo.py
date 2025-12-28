@@ -1,7 +1,9 @@
 from pathlib import Path
+
 from app.stt_local import transcribe
 from app.teacher_openai import teacher_answer
 from app.tts_local import speak
+from app.voice_id import identify_speaker
 
 
 STUDENT = {
@@ -12,7 +14,8 @@ STUDENT = {
     "learning_style": "step-by-step",
 }
 
-def find_audio_file() -> str:
+
+def find_audio_file() -> Path:
     candidates = [
         Path("samples/student_question.wav"),
         Path("samples/student_question.m4a"),
@@ -21,21 +24,28 @@ def find_audio_file() -> str:
     ]
     for p in candidates:
         if p.exists():
-            return str(p)
+            return p
     raise FileNotFoundError(
         "No audio file found. Put one of these in samples/: "
         "student_question.wav / student_question.m4a / student_question.mp3"
     )
 
-def main():
+
+def main() -> None:
     audio_path = find_audio_file()
     print(f"Using audio: {audio_path}")
 
-    question = transcribe(audio_path)
-    if not question:
-        print("No speech detected. Try a clearer recording.")
-        return
+    raw = identify_speaker(str(audio_path))
+    print(f"Raw speaker match: {raw}")
 
+    speaker = raw if raw else "Student"
+    print(f"Detected speaker (final): {speaker}")
+    STUDENT["name"] = speaker
+
+    print(f"Detected speaker: {speaker}")
+    STUDENT["name"] = speaker
+
+    question = transcribe(str(audio_path))
     print("\n--- TRANSCRIBED QUESTION ---")
     print(question)
 
@@ -43,7 +53,7 @@ def main():
 
     print("\n--- TEACHER ANSWER ---")
     print(answer)
-    
+
     print("\n--- SPEAKING ANSWER ---")
     speak(answer)
 
