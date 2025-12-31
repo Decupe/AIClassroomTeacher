@@ -4,6 +4,8 @@ from app.stt_local import transcribe
 from app.teacher_openai import teacher_answer
 from app.tts_local import speak
 from app.voice_id import identify_speaker
+from app.memory import get_student_memory, update_student_progress, build_memory_summary
+from app.curriculum_retriever import pick_pack_id, retrieve_curriculum_chunks
 
 
 STUDENT = {
@@ -41,6 +43,8 @@ def main() -> None:
     speaker = raw if raw else "Student"
     print(f"Detected speaker (final): {speaker}")
     STUDENT["name"] = speaker
+    mem = get_student_memory(STUDENT["name"])
+    STUDENT["memory_summary"] = build_memory_summary(mem)
 
     print(f"Detected speaker: {speaker}")
     STUDENT["name"] = speaker
@@ -49,7 +53,24 @@ def main() -> None:
     print("\n--- TRANSCRIBED QUESTION ---")
     print(question)
 
-    answer = teacher_answer(question, STUDENT)
+    pack_id = pick_pack_id(STUDENT)
+
+    chunks = retrieve_curriculum_chunks(pack_id, question, top_k=4)
+    curriculum_excerpts = "\n\n".join(
+    [f"[{c['chunk_id']}]\n{c['text']}" for c in chunks]
+    ) or "No matching curriculum excerpt found."
+
+
+    answer = teacher_answer(question, STUDENT, curriculum_excerpts=curriculum_excerpts)
+
+    topic_guess = STUDENT.get("subject")
+    update_student_progress(
+    name=STUDENT["name"],
+    question=question,
+    answer=answer,
+    topic=topic_guess,
+    )
+
 
     print("\n--- TEACHER ANSWER ---")
     print(answer)
