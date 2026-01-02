@@ -6,6 +6,8 @@ from app.tts_local import speak
 from app.voice_id import identify_speaker
 from app.memory import get_student_memory, update_student_progress, build_memory_summary
 from app.curriculum_retriever import pick_pack_id, retrieve_curriculum_chunks
+from app.rag_retriever import retrieve_semantic
+
 
 
 STUDENT = {
@@ -55,7 +57,7 @@ def main() -> None:
 
     pack_id = pick_pack_id(STUDENT)
 
-    chunks = retrieve_curriculum_chunks(pack_id, question, top_k=4)
+    chunks = retrieve_semantic(pack_id, question, top_k=4)
     curriculum_excerpts = "\n\n".join(
     [f"[{c['chunk_id']}]\n{c['text']}" for c in chunks]
     ) or "No matching curriculum excerpt found."
