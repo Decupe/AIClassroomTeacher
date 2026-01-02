@@ -1,0 +1,38 @@
+{
+  "cohort_id": "Year7_Maths_Term1",
+  "year": "Year 7",
+  "subject": "Maths",
+  "term": "Autumn 1",
+  "units": [
+    {
+      "unit_id": "U1_Number",
+      "unit_title": "Number basics",
+      "lessons": [
+        {
+          "lesson_id": "L1_Fractions_Intro",
+          "lesson_title": "Fractions introduction",
+          "objectives": [
+            "Understand what a fraction means (part of a whole).",
+            "Identify numerator and denominator.",
+            "Give examples using shapes and real life items."
+          ],
+          "steps": [
+            {
+              "type": "explain",
+              "text": "A fraction shows part of a whole. It has two numbers: the top is the numerator and the bottom is the denominator."
+            },
+            {
+              "type": "example",
+              "text": "If a pizza is cut into 4 equal slices and you eat 1 slice, you ate 1 out of 4. That is written as 1 over 4."
+            },
+            {
+              "type": "check_question",
+              "text": "If a chocolate bar has 8 equal pieces and you eat 3, what fraction did you eat?"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

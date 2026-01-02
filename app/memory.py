@@ -1,8 +1,7 @@
 import json
-from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 DB_PATH = Path("data/progress_db.json")
 
@@ -33,6 +32,7 @@ def get_student_memory(name: str) -> Dict[str, Any]:
     """
     db = _load_db()
     students = db.setdefault("students", {})
+
     if name not in students:
         students[name] = {
             "name": name,
@@ -42,8 +42,26 @@ def get_student_memory(name: str) -> Dict[str, Any]:
             "misconceptions": [],      # list[str]
             "strengths": [],           # list[str]
             "last_questions": [],      # list[{"ts":..., "q":..., "a_short":..., "topic":...}]
+
+            # ✅ NEW: lesson state + session state
+            "lesson_state": {
+                # key -> { "pack_id": str, "step_index": int, "completed": bool,
+                #          "last_step_at": iso, "started_at": iso, "completed_at": iso|None }
+            },
+            "session_state": {
+                "last_welcome_at": None,   # iso
+                "last_pack_id": None,      # str
+            },
         }
         _save_db(db)
+
+    # Backward-compat for older students created before lesson_state existed
+    s = students[name]
+    s.setdefault("lesson_state", {})
+    s.setdefault("session_state", {"last_welcome_at": None, "last_pack_id": None})
+    students[name] = s
+    _save_db(db)
+
     return students[name]
 
 
@@ -119,4 +137,105 @@ def build_memory_summary(student_memory: Dict[str, Any]) -> str:
         f"Strengths: {', '.join(strengths) if strengths else 'None recorded'}\n"
         f"Last question asked: {last_q_text}"
     )
+
+
+# =========================================================
+# ✅ NEW: Lesson state helpers (keeps it simple, still JSON)
+# =========================================================
+
+def _lesson_key(subject: str, pack_id: str) -> str:
+    # A stable key per subject + curriculum pack
+    return f"{subject}::{pack_id}"
+
+
+def get_lesson_state(name: str, subject: str, pack_id: str) -> Dict[str, Any]:
+    """
+    Returns lesson state dict, creating if missing.
+    """
+    db = _load_db()
+    students = db.setdefault("students", {})
+    student = students.get(name) or get_student_memory(name)
+
+    student.setdefault("lesson_state", {})
+    key = _lesson_key(subject, pack_id)
+
+    if key not in student["lesson_state"]:
+        student["lesson_state"][key] = {
+            "pack_id": pack_id,
+            "subject": subject,
+            "step_index": 0,            # next step to teach
+            "completed": False,
+            "started_at": _utc_now_iso(),
+            "last_step_at": None,
+            "completed_at": None,
+        }
+        students[name] = student
+        _save_db(db)
+
+    return student["lesson_state"][key]
+
+
+def set_lesson_state(name: str, subject: str, pack_id: str, state: Dict[str, Any]) -> None:
+    db = _load_db()
+    students = db.setdefault("students", {})
+    student = students.get(name) or get_student_memory(name)
+
+    student.setdefault("lesson_state", {})
+    key = _lesson_key(subject, pack_id)
+    student["lesson_state"][key] = state
+    student["last_seen_at"] = _utc_now_iso()
+
+    students[name] = student
+    _save_db(db)
+
+
+def advance_lesson_step(name: str, subject: str, pack_id: str) -> int:
+    """
+    Increase step_index by 1 and save. Returns new step_index.
+    """
+    state = get_lesson_state(name, subject, pack_id)
+    if state.get("completed"):
+        return int(state.get("step_index", 0))
+
+    state["step_index"] = int(state.get("step_index", 0)) + 1
+    state["last_step_at"] = _utc_now_iso()
+    set_lesson_state(name, subject, pack_id, state)
+    return state["step_index"]
+
+
+def mark_lesson_complete(name: str, subject: str, pack_id: str) -> None:
+    state = get_lesson_state(name, subject, pack_id)
+    state["completed"] = True
+    state["completed_at"] = _utc_now_iso()
+    set_lesson_state(name, subject, pack_id, state)
+
+
+def should_welcome_today(name: str) -> bool:
+    """
+    Simple rule: welcome once per day per student.
+    """
+    mem = get_student_memory(name)
+    last = mem.get("session_state", {}).get("last_welcome_at")
+    if not last:
+        return True
+    try:
+        last_dt = datetime.fromisoformat(last.replace("Z", "+00:00"))
+    except Exception:
+        return True
+    now = datetime.now(timezone.utc)
+    return last_dt.date() != now.date()
+
+
+def set_welcomed_now(name: str) -> None:
+    db = _load_db()
+    students = db.setdefault("students", {})
+    student = students.get(name) or get_student_memory(name)
+
+    student.setdefault("session_state", {})
+    student["session_state"]["last_welcome_at"] = _utc_now_iso()
+    student["last_seen_at"] = _utc_now_iso()
+
+    students[name] = student
+    _save_db(db)
+
 
